@@ -81,3 +81,6 @@ If Docker Desktop is not available, install backend dependencies and start Uvico
 python -m pip install -r backend\requirements.txt
 python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
+![Idle character](E4AEC8A5-B848-46CC-BB71-5A034E554B40_5-removebg-preview.png)
+![working character](BFE8A160-ECA1-4A22-B12F-5416503F8EC2_5-removebg-preview.png)
+![alert character](B1B25D83-7E97-46B1-8ED9-7CB7D573E7C8_3-removebg-preview.png)
