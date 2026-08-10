@@ -9,9 +9,10 @@ from pathlib import Path
 
 import psutil
 from pynput import keyboard
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, QUrl
 from PyQt5.QtGui import QMovie
-from PyQt5.QtWidgets import QApplication, QLabel, QWidget
+from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QMenu
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent, QMediaPlaylist
 
 
 # This makes asset paths work no matter which folder you run Python from.
@@ -20,18 +21,28 @@ GIFS = {
     "idle": ASSETS_DIR / "idle.gif",
     "working": ASSETS_DIR / "working.gif",
     "alert": ASSETS_DIR / "alert.gif",
+    "moving": ASSETS_DIR / "moving.gif",
 }
+
+def get_sound_path(mood: str) -> Path | None:
+    for ext in [".mp3", ".wav"]:
+        path = ASSETS_DIR / f"{mood}{ext}"
+        if path.is_file():
+            return path
+    return None
 
 # Keep the desktop pet approximately the size of a dock/app icon.
 WINDOW_SIZE = 72
 GIF_SIZE = 64
-# After the most recent key press, keep the working animation for three
-# seconds. Trackpad and mouse activity intentionally do not count.
-KEYBOARD_IDLE_DELAY_SECONDS = 3
+# After the most recent key press, keep the working animation for a short
+# time. Trackpad and mouse activity intentionally do not count.
+KEYBOARD_IDLE_DELAY_SECONDS = 1
 
 
-def choose_mood(cpu: float, memory: float, recently_typing: bool) -> str:
+def choose_mood(cpu: float, memory: float, recently_typing: bool, is_dragging: bool = False) -> str:
     """Choose a mood from system pressure first, then user input activity."""
+    if is_dragging:
+        return "moving"
     # Alert remains a useful safety state when the computer is overloaded.
     if cpu >= 80 or memory >= 90:
         return "alert"
@@ -49,6 +60,10 @@ class PetWindow(QWidget):
         super().__init__()
         self.current_mood: str | None = None
         self.movie: QMovie | None = None
+        self.player = QMediaPlayer()
+        self.player.setVolume(10)
+        self.playlist = QMediaPlaylist()
+        self.player.setPlaylist(self.playlist)
         self.drag_offset = None
         # Start as idle; this time is deliberately older than the delay.
         self.last_keyboard_time = time.monotonic() - KEYBOARD_IDLE_DELAY_SECONDS
@@ -103,7 +118,8 @@ class PetWindow(QWidget):
             time.monotonic() - self.last_keyboard_time
             < KEYBOARD_IDLE_DELAY_SECONDS
         )
-        mood = choose_mood(self.cpu, self.memory, recently_typing)
+        is_dragging = self.drag_offset is not None
+        mood = choose_mood(self.cpu, self.memory, recently_typing, is_dragging)
         self.set_mood(mood)
         activity = "typing" if recently_typing else "not typing"
         self.setToolTip(
@@ -144,10 +160,23 @@ class PetWindow(QWidget):
         self.movie.start()
         self.current_mood = mood
 
+        sound_path = get_sound_path(mood)
+        self.playlist.clear()
+        if sound_path:
+            self.playlist.addMedia(QMediaContent(QUrl.fromLocalFile(str(sound_path))))
+            if mood in ["moving", "working"]:
+                self.playlist.setPlaybackMode(QMediaPlaylist.Loop)
+            else:
+                self.playlist.setPlaybackMode(QMediaPlaylist.CurrentItemOnce)
+            self.player.play()
+        else:
+            self.player.stop()
+
     def mousePressEvent(self, event) -> None:
         """Remember where the user grabbed the pet with the left mouse button."""
         if event.button() == Qt.LeftButton:
             self.drag_offset = event.globalPos() - self.frameGeometry().topLeft()
+            self.update_pet_mood()
             event.accept()
 
     def mouseMoveEvent(self, event) -> None:
@@ -160,11 +189,21 @@ class PetWindow(QWidget):
         """Finish a drag operation."""
         if event.button() == Qt.LeftButton:
             self.drag_offset = None
+            self.update_pet_mood()
             event.accept()
+
+    def contextMenuEvent(self, event) -> None:
+        """Allow closing the pet using a right-click menu."""
+        menu = QMenu(self)
+        quit_action = menu.addAction("Quit Pet")
+        action = menu.exec_(self.mapToGlobal(event.pos()))
+        if action == quit_action:
+            self.close()
 
     def closeEvent(self, event) -> None:
         """Stop background input listeners when the pet is closed."""
         self.keyboard_listener.stop()
+        self.player.stop()
         event.accept()
 
 
