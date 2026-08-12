@@ -84,8 +84,8 @@ def set_mode(req: ModeRequest):
 
     if req.mode not in ("offline", "online", "auto"):
         return {
-            "error": f"Invalid mode: {
-                req.mode}. Use 'offline', 'online', or 'auto'."}
+            "error": f"Invalid mode: {req.mode}. Use 'offline', 'online', or 'auto'."
+        }
 
     if req.mode == "online" and inference.online is None:
         return {"error": "Online mode unavailable (no API key configured)."}

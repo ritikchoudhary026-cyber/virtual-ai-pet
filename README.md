@@ -1,4 +1,9 @@
-# PetAI
+## ☕ Buy Me a Coffee
+If this project helped you learn something new, or you just enjoy using it, consider supporting my late-night coding sessions! Your support helps me maintain the code, add new LLM features, and keep the repository bug-free.
+
+💸 **Support via UPI:** choudharyritik026-1@okicici
+
+# kuchu-Puchu PetAI
 
 A small, transparent, draggable desktop pet. Its animation changes as CPU and memory usage change. Everything runs locally and uses no paid service.
 
