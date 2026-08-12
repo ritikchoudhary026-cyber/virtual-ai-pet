@@ -83,7 +83,9 @@ def set_mode(req: ModeRequest):
     global current_mode, agent
 
     if req.mode not in ("offline", "online", "auto"):
-        return {"error": f"Invalid mode: {req.mode}. Use 'offline', 'online', or 'auto'."}
+        return {
+            "error": f"Invalid mode: {
+                req.mode}. Use 'offline', 'online', or 'auto'."}
 
     if req.mode == "online" and inference.online is None:
         return {"error": "Online mode unavailable (no API key configured)."}
@@ -135,7 +137,8 @@ def chat(req: ChatRequest):
         final_state = agent.invoke(state, {"recursion_limit": 6})
 
         # Extract the last assistant message
-        assistant_msgs = [msg for msg in final_state["messages"] if msg.startswith("Pet: ")]
+        assistant_msgs = [
+            msg for msg in final_state["messages"] if msg.startswith("Pet: ")]
         if assistant_msgs:
             reply = assistant_msgs[-1].replace("Pet: ", "")
         else:

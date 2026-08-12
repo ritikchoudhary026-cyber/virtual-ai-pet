@@ -48,7 +48,10 @@ def clean_reply(text: str) -> str:
     # Strip leaked reasoning traces from models like Nemotron 3.5 Lightning
     if "thinking process" in text.lower():
         # Try to find the actual output at the end of the reasoning trace
-        output_match = re.search(r'(?:Output|Final Output|Response):\s*(.*)', text, flags=re.IGNORECASE | re.DOTALL)
+        output_match = re.search(
+            r'(?:Output|Final Output|Response):\s*(.*)',
+            text,
+            flags=re.IGNORECASE | re.DOTALL)
         if output_match:
             text = output_match.group(1).strip()
         else:
@@ -72,11 +75,14 @@ def _messages_to_standard(raw_messages: List[str]) -> List[dict]:
     standard = [{"role": "system", "content": SYSTEM_PROMPT}]
     for msg in raw_messages[-6:]:
         if msg.startswith("User: "):
-            standard.append({"role": "user", "content": msg.replace("User: ", "", 1)})
+            standard.append(
+                {"role": "user", "content": msg.replace("User: ", "", 1)})
         elif msg.startswith("Pet: "):
-            standard.append({"role": "assistant", "content": msg.replace("Pet: ", "", 1)})
+            standard.append(
+                {"role": "assistant", "content": msg.replace("Pet: ", "", 1)})
         elif msg.startswith("Tool result"):
-            # Inject tool results as a system notification inside a user message
+            # Inject tool results as a system notification inside a user
+            # message
             standard.append({
                 "role": "user",
                 "content": f"[SYSTEM NOTIFICATION]: {msg}. Please provide the final short answer based on this result.",
@@ -110,7 +116,8 @@ def create_agent(inference_manager, mode: str = "auto"):
         reply = reply.encode("ascii", "ignore").decode("ascii").strip()
 
         # Detect tool call patterns in the reply
-        tool_match = re.search(r'\[TOOL:\s*(\w+)\](?:\s*\[ARGS:\s*(.*?)\])?', reply)
+        tool_match = re.search(
+            r'\[TOOL:\s*(\w+)\](?:\s*\[ARGS:\s*(.*?)\])?', reply)
         new_msgs = state["messages"][:]
 
         if tool_match:
@@ -119,17 +126,22 @@ def create_agent(inference_manager, mode: str = "auto"):
                 # Model wrote text before the tool call - return just the text
                 final_text = clean_reply(text_before)
                 new_msgs.append(f"Pet: {final_text}")
-                logger.info("Ignored appended tool, returning text: %s", final_text)
+                logger.info(
+                    "Ignored appended tool, returning text: %s",
+                    final_text)
                 return {"messages": new_msgs, "next": END}
 
             tool_name = tool_match.group(1)
-            args_str = tool_match.group(2).strip() if tool_match.group(2) else ""
+            args_str = tool_match.group(
+                2).strip() if tool_match.group(2) else ""
 
             # Anti-loop: don't call the same tool twice in a row
-            if state["messages"] and state["messages"][-1].startswith(f"Tool result ({tool_name})"):
+            if state["messages"] and state["messages"][-1].startswith(
+                    f"Tool result ({tool_name})"):
                 cleaned_reply = reply.replace(tool_match.group(0), "").strip()
                 if not cleaned_reply:
-                    cleaned_reply = state["messages"][-1].split(":", 1)[1].strip()
+                    cleaned_reply = state["messages"][-1].split(":", 1)[
+                        1].strip()
                 final_text = clean_reply(cleaned_reply)
                 new_msgs.append(f"Pet: {final_text}")
                 logger.info("Loop detected! Forcing answer: %s", final_text)
@@ -141,7 +153,12 @@ def create_agent(inference_manager, mode: str = "auto"):
                 args = args_str
             new_msgs.append(f"Pet: {reply}")
             logger.info("Routing to tool: %s with args: %s", tool_name, args)
-            return {"messages": new_msgs, "tool_call": (tool_name, args), "next": "tools"}
+            return {
+                "messages": new_msgs,
+                "tool_call": (
+                    tool_name,
+                    args),
+                "next": "tools"}
 
         # No tool call - return clean text
         final_text = clean_reply(reply)
@@ -186,7 +203,9 @@ def create_agent(inference_manager, mode: str = "auto"):
     def router(state: AgentState):
         return state["next"]
 
-    workflow.add_conditional_edges("chat", router, {"tools": "tools", END: END})
+    workflow.add_conditional_edges(
+        "chat", router, {
+            "tools": "tools", END: END})
     workflow.add_edge("tools", "chat")
 
     return workflow.compile()

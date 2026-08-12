@@ -12,7 +12,9 @@ model = AutoModelForCausalLM.from_pretrained(base_model_name)
 model.resize_token_embeddings(len(tokenizer))
 
 # Apply fine-tuned adapter
-model = PeftModel.from_pretrained(model, "/Users/ritikchoudhary/virtual-ai-pet/backend/content/pet-chat-adapter")
+model = PeftModel.from_pretrained(
+    model, "/Users/ritikchoudhary/virtual-ai-pet/backend/content/pet-chat-adapter")
+
 
 def chat(user_input):
     prompt = f"User: {user_input}\nPet:"
@@ -26,10 +28,11 @@ def chat(user_input):
         pad_token_id=tokenizer.eos_token_id
     )
     response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    
+
     # Extract text after "Pet:" in response
     answer = response.split("Pet:")[-1].strip()
     return answer
+
 
 # Test
 while True:

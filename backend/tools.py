@@ -1,16 +1,26 @@
 import psutil
 import json
 import requests
-import subprocess
-import os
+
 
 def calculator(expression: str) -> str:
     """Calculate a math expression safely."""
     # Convert "15% of 200" to "(15/100)*200"
     import re
-    expression = expression.replace('?', '').replace('=', '').replace("'", "").replace('"', "").strip()
-    expression = re.sub(r'(\d+(?:\.\d+)?)%\s*of\s*(\d+(?:\.\d+)?)', r'(\1/100)*\2', expression.lower())
-    
+    expression = expression.replace(
+        '?',
+        '').replace(
+        '=',
+        '').replace(
+            "'",
+            "").replace(
+                '"',
+        "").strip()
+    expression = re.sub(
+        r'(\d+(?:\.\d+)?)%\s*of\s*(\d+(?:\.\d+)?)',
+        r'(\1/100)*\2',
+        expression.lower())
+
     allowed = set("0123456789+-*/().% ")
     if not all(c in allowed for c in expression):
         return "Error: Invalid characters in expression."
@@ -20,11 +30,13 @@ def calculator(expression: str) -> str:
     except Exception as e:
         return f"Error: {e}"
 
+
 def system_stats() -> str:
     """Return CPU and memory usage."""
     cpu = psutil.cpu_percent(interval=1)
     mem = psutil.virtual_memory().percent
     return json.dumps({"cpu": cpu, "memory": mem})
+
 
 def weather(city: str = "London") -> str:
     """Get current weather for a city using wttr.in."""
@@ -32,7 +44,7 @@ def weather(city: str = "London") -> str:
         url = f"https://wttr.in/{city}?format=%C+%t"
         resp = requests.get(url, timeout=5)
         return resp.text.strip()
-    except:
+    except BaseException:
         return "Weather service unavailable."
 
 
@@ -43,7 +55,7 @@ def web_search(query: str) -> str:
         results = list(DDGS().text(query, max_results=3))
         if not results:
             return "No web search results found."
-        
+
         snippets = []
         for r in results:
             snippets.append(f"- {r.get('title', '')}: {r.get('body', '')}")
