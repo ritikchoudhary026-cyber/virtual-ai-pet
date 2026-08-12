@@ -36,6 +36,21 @@ def weather(city: str = "London") -> str:
         return "Weather service unavailable."
 
 
+def web_search(query: str) -> str:
+    """Search DuckDuckGo for the query and return summarized text snippets."""
+    try:
+        from ddgs import DDGS
+        results = list(DDGS().text(query, max_results=3))
+        if not results:
+            return "No web search results found."
+        
+        snippets = []
+        for r in results:
+            snippets.append(f"- {r.get('title', '')}: {r.get('body', '')}")
+        return "\n".join(snippets)
+    except Exception as e:
+        return f"Web search failed: {e}"
+
 
 # Register tools with their schemas (for LLM to understand)
 TOOLS = {
@@ -53,5 +68,10 @@ TOOLS = {
         "function": weather,
         "description": "Get current weather for a city. Input: city name.",
         "parameters": "city"
+    },
+    "web_search": {
+        "function": web_search,
+        "description": "Search the internet for current news, facts, or real-time information. Input: search query.",
+        "parameters": "query"
     }
 }

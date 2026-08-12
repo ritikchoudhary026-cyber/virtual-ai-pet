@@ -3,3 +3,16 @@ services:
     build: ./backend
     ports:
       - "8000:8000"
+    environment:
+      - DEFAULT_MODE=${DEFAULT_MODE:-auto}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - PHI_MODEL_PATH=/app/models/Phi-3-mini-4k-instruct-q4.gguf
+    volumes:
+      - ./backend/models:/app/models
+      - ./backend/chroma_db:/app/chroma_db
+
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 300 pet-backend

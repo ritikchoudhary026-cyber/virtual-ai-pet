@@ -1,0 +1,5 @@
+dvc[gdrive]
+mlflow
+torch
+transformers
+datasets

@@ -1,8 +1,10 @@
 fastapi
 uvicorn
 psutil
-transformers
-torch
-accelerate
 chromadb
 sentence-transformers
+llama-cpp-python
+langgraph
+python-dotenv
+httpx
+ddgs

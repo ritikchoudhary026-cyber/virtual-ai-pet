@@ -1,10 +1,10 @@
-"""Phase 2: a desktop pet that gets its mood from the local FastAPI backend,
-supports keyboard-driven 'working' mood and an AI chatbot window.
+"""Desktop pet frontend with mood animations, AI chatbot, and mode toggle.
+
+Supports switching between offline (Phi-3), online (Nemotron 3.5), and auto modes.
 """
 
 import sys
 import time
-import threading
 from pathlib import Path
 
 import requests
@@ -13,12 +13,13 @@ from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QMovie
 from PyQt5.QtWidgets import (
     QApplication, QLabel, QWidget, QMenu, QDialog, QVBoxLayout,
-    QHBoxLayout, QTextEdit, QLineEdit, QPushButton,
+    QHBoxLayout, QTextEdit, QLineEdit, QPushButton, QComboBox,
 )
 
 
 API_URL = "http://localhost:8000"
-# frontend is one directory below the project root, where assets lives.
+
+# frontend/ is one directory below the project root where assets/ lives
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
 GIFS = {
     "idle": ASSETS_DIR / "idle.gif",
@@ -27,39 +28,36 @@ GIFS = {
     "moving": ASSETS_DIR / "moving.gif",
 }
 
-# How long after the last key press we keep the 'working' animation.
+# How long after the last key press we keep the 'working' animation
 KEYBOARD_IDLE_DELAY_SECONDS = 1
 
-# Keep the desktop pet approximately the size of a dock/app icon.
+# Keep the desktop pet approximately the size of a dock/app icon
 WINDOW_SIZE = 72
 GIF_SIZE = 64
-
-
-
-# ---------------------------------------------------------------------------
-# Chat Window  –  pixel-art / retro themed dialog
-# ---------------------------------------------------------------------------
 
 # Path to chat assets
 CHAT_BG = ASSETS_DIR / "kittywallpaper.png"
 AVATAR_IMG = ASSETS_DIR / "cat.png"
 
 
+# ---------------------------------------------------------------------------
+# Chat Window with mode toggle
+# ---------------------------------------------------------------------------
+
 class ChatWindow(QDialog):
-    """A professional pixel-art styled chat dialog that talks to the /chat backend."""
+    """Pixel-art styled chat dialog with offline/online mode selector."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Kuchu-Puchu Chat")
-        self.setFixedSize(380, 500)
+        self.setFixedSize(380, 540)
         self.setWindowFlags(
             Qt.WindowStaysOnTopHint | Qt.Tool | Qt.WindowCloseButtonHint
         )
 
-        # Use raw file paths for Qt CSS and HTML
         bg_path = str(CHAT_BG) if CHAT_BG.is_file() else ""
         self.avatar_path = str(AVATAR_IMG) if AVATAR_IMG.is_file() else ""
-        # ---- main styling with wallpaper background ----
+
         self.setStyleSheet(f"""
             ChatWindow {{
                 background-image: url("{bg_path}");
@@ -73,8 +71,8 @@ class ChatWindow(QDialog):
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(6)
 
-        # Title bar with pixel-art styling
-        title = QLabel("⬥ Kuchu-Puchu Chat ⬥")
+        # Title bar
+        title = QLabel("Kuchu-Puchu Chat")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("""
             QLabel {
@@ -89,6 +87,70 @@ class ChatWindow(QDialog):
             }
         """)
         layout.addWidget(title)
+
+        # Mode selector row
+        mode_layout = QHBoxLayout()
+        mode_layout.setSpacing(4)
+
+        mode_label = QLabel("MODE:")
+        mode_label.setStyleSheet("""
+            QLabel {
+                color: #78b8ff;
+                font-family: 'Courier New', monospace;
+                font-size: 11px;
+                font-weight: bold;
+                background-color: rgba(10, 15, 30, 200);
+                padding: 4px 6px;
+                border: 2px solid #4a90d9;
+            }
+        """)
+        mode_layout.addWidget(mode_label)
+
+        self.mode_combo = QComboBox()
+        self.mode_combo.addItems(["auto", "offline", "online"])
+        self.mode_combo.setStyleSheet("""
+            QComboBox {
+                background-color: rgba(10, 15, 30, 220);
+                color: #78b8ff;
+                font-family: 'Courier New', monospace;
+                font-size: 11px;
+                font-weight: bold;
+                padding: 4px 8px;
+                border: 2px solid #4a90d9;
+            }
+            QComboBox::drop-down {
+                border: none;
+                background-color: rgba(30, 60, 120, 220);
+            }
+            QComboBox QAbstractItemView {
+                background-color: rgba(10, 15, 30, 240);
+                color: #78b8ff;
+                border: 2px solid #4a90d9;
+                selection-background-color: #4a90d9;
+                selection-color: #ffffff;
+                font-family: 'Courier New', monospace;
+                font-size: 11px;
+            }
+        """)
+        mode_layout.addWidget(self.mode_combo, 1)
+
+        # Mode status indicator
+        self.mode_status = QLabel("READY")
+        self.mode_status.setAlignment(Qt.AlignCenter)
+        self.mode_status.setStyleSheet("""
+            QLabel {
+                color: #50fa7b;
+                font-family: 'Courier New', monospace;
+                font-size: 10px;
+                font-weight: bold;
+                background-color: rgba(10, 15, 30, 200);
+                padding: 4px 6px;
+                border: 2px solid #50fa7b;
+            }
+        """)
+        mode_layout.addWidget(self.mode_status)
+
+        layout.addLayout(mode_layout)
 
         # Chat history area
         self.chat_history = QTextEdit()
@@ -155,12 +217,24 @@ class ChatWindow(QDialog):
         layout.addLayout(input_layout)
 
         # Welcome message
-        self._append_bot("Hey! I am yours Kuchu-Puchu !")
+        self._append_bot("Hey! I am your Kuchu-Puchu!")
 
-    def _msg_html(self, sender: str, avatar_html: str, text: str, is_bot: bool) -> str:
+    def _msg_html(self, sender: str, avatar_html: str, text: str, is_bot: bool, mode_badge: str = "") -> str:
         """Build a pixel-art bordered message bubble in HTML."""
         border = "#4a90d9"
         bg = "rgba(15, 25, 60, 180)" if is_bot else "rgba(20, 50, 100, 180)"
+
+        # Mode badge for bot messages
+        badge_html = ""
+        if mode_badge:
+            badge_color = "#50fa7b" if mode_badge == "offline" else "#78b8ff"
+            badge_html = (
+                f'<span style="color:{badge_color}; font-size:9px; '
+                f'font-family:Courier New,monospace; font-weight:bold; '
+                f'padding:1px 4px; border:1px solid {badge_color}; '
+                f'margin-left:6px;">{mode_badge.upper()}</span>'
+            )
+
         return (
             f'<div style="margin:4px 0;">'
             f'<table cellpadding="0" cellspacing="0" style="border:2px solid {border}; '
@@ -169,7 +243,7 @@ class ChatWindow(QDialog):
             f'<td style="padding:4px 6px; vertical-align:middle; width:34px;">{avatar_html}</td>'
             f'<td style="padding:4px 6px; vertical-align:middle;">'
             f'<span style="color:#4a90d9; font-family:Courier New,monospace; font-size:11px; '
-            f'font-weight:bold;">{sender}</span></td>'
+            f'font-weight:bold;">{sender}</span>{badge_html}</td>'
             f'</tr>'
             f'<tr>'
             f'<td colspan="2" style="padding:4px 8px; border-top:1px solid {border};">'
@@ -178,19 +252,51 @@ class ChatWindow(QDialog):
             f'</tr></table></div>'
         )
 
-    def _append_bot(self, text: str) -> None:
-        avatar = f'<img src="{self.avatar_path}" width="28" height="28">' if self.avatar_path else "🐾"
-        self.chat_history.append(self._msg_html("Kuchu-Puchu", avatar, text, is_bot=True))
+    def _append_bot(self, text: str, mode_badge: str = "") -> None:
+        """Add a bot message to the chat history."""
+        avatar = f'<img src="{self.avatar_path}" width="28" height="28">' if self.avatar_path else "PET"
+        self.chat_history.append(self._msg_html("Kuchu-Puchu", avatar, text, is_bot=True, mode_badge=mode_badge))
         self._scroll_bottom()
 
     def _append_user(self, text: str) -> None:
+        """Add a user message to the chat history."""
         avatar = '<span style="font-size:14px;">YOU</span>'
         self.chat_history.append(self._msg_html("You", avatar, text, is_bot=False))
         self._scroll_bottom()
 
     def _scroll_bottom(self) -> None:
+        """Scroll chat history to the latest message."""
         scrollbar = self.chat_history.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
+
+    def _update_mode_status(self, mode_used: str) -> None:
+        """Update the mode status indicator based on which engine was used."""
+        if mode_used == "online":
+            self.mode_status.setText("ONLINE")
+            self.mode_status.setStyleSheet("""
+                QLabel {
+                    color: #78b8ff;
+                    font-family: 'Courier New', monospace;
+                    font-size: 10px;
+                    font-weight: bold;
+                    background-color: rgba(10, 15, 30, 200);
+                    padding: 4px 6px;
+                    border: 2px solid #78b8ff;
+                }
+            """)
+        else:
+            self.mode_status.setText("OFFLINE")
+            self.mode_status.setStyleSheet("""
+                QLabel {
+                    color: #50fa7b;
+                    font-family: 'Courier New', monospace;
+                    font-size: 10px;
+                    font-weight: bold;
+                    background-color: rgba(10, 15, 30, 200);
+                    padding: 4px 6px;
+                    border: 2px solid #50fa7b;
+                }
+            """)
 
     def send_message(self) -> None:
         """Send the user's message to the backend and display the reply."""
@@ -200,23 +306,31 @@ class ChatWindow(QDialog):
         self.input_field.clear()
         self._append_user(text)
 
+        selected_mode = self.mode_combo.currentText()
+
         try:
             resp = requests.post(
                 f"{API_URL}/chat",
-                json={"message": text},
+                json={"message": text, "mode": selected_mode},
                 timeout=120,
             )
             resp.raise_for_status()
-            reply = resp.json().get("response", "…")
+            data = resp.json()
+            reply = data.get("response", "...")
+            mode_used = data.get("mode_used", selected_mode)
         except Exception as e:
             reply = f"(Backend error: {e})"
+            mode_used = "error"
 
-        self._append_bot(reply)
+        self._append_bot(reply, mode_badge=mode_used if mode_used != "error" else "")
+        if mode_used != "error":
+            self._update_mode_status(mode_used)
 
 
 # ---------------------------------------------------------------------------
 # Pet Window
 # ---------------------------------------------------------------------------
+
 class PetWindow(QWidget):
     """Transparent, always-on-top and draggable GIF window."""
 
@@ -236,13 +350,13 @@ class PetWindow(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setFixedSize(WINDOW_SIZE, WINDOW_SIZE)
 
-        self.pet_label = QLabel("Connecting…", self)
+        self.pet_label = QLabel("Connecting...", self)
         self.pet_label.setAlignment(Qt.AlignCenter)
         self.pet_label.setGeometry(self.rect())
         self.pet_label.setStyleSheet("color: white; font-size: 14px;")
         self.pet_label.setAttribute(Qt.WA_TransparentForMouseEvents)
 
-        # Poll backend every 2 seconds; a fast timer checks keyboard/drag every 100ms.
+        # Poll backend every 2 seconds; fast timer checks keyboard/drag every 100ms
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self._poll_backend)
         self._poll_backend()
@@ -257,12 +371,12 @@ class PetWindow(QWidget):
         self._backend_cpu: float = 0.0
         self._backend_mem: float = 0.0
 
-    # ---- keyboard listener callback (runs in a background thread) ----
     def _on_key_press(self, key) -> None:
+        """Record the timestamp of the most recent key press."""
         self.last_keyboard_time = time.monotonic()
 
-    # ---- backend polling (every 2 s) ----
     def _poll_backend(self) -> None:
+        """Fetch system status from the backend every 2 seconds."""
         try:
             response = requests.get(f"{API_URL}/status", timeout=1)
             response.raise_for_status()
@@ -275,8 +389,8 @@ class PetWindow(QWidget):
             if self.current_mood is None:
                 self.pet_label.setText("Backend\ndisconnected")
 
-    # ---- mood decision (every 100 ms) ----
     def _update_mood(self) -> None:
+        """Decide the current mood based on keyboard activity and backend data."""
         recently_typing = (
             time.monotonic() - self.last_keyboard_time < KEYBOARD_IDLE_DELAY_SECONDS
         )
@@ -296,7 +410,6 @@ class PetWindow(QWidget):
             f"Keyboard: {activity} | Mood: {mood}"
         )
 
-    # ---- GIF ----
     def set_mood(self, mood: str) -> None:
         """Load and play the GIF belonging to the requested mood."""
         if mood == self.current_mood:
@@ -320,6 +433,7 @@ class PetWindow(QWidget):
         self.current_mood = mood
 
     # ---- mouse drag ----
+
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.LeftButton:
             self.drag_offset = event.globalPos() - self.frameGeometry().topLeft()
@@ -338,6 +452,7 @@ class PetWindow(QWidget):
             event.accept()
 
     # ---- right-click context menu ----
+
     def contextMenuEvent(self, event) -> None:
         menu = QMenu(self)
         menu.setStyleSheet("""
@@ -373,19 +488,19 @@ class PetWindow(QWidget):
             self.chat_window = ChatWindow(parent=None)
         # Position above the pet
         pet_pos = self.frameGeometry().topLeft()
-        chat_x = pet_pos.x() - 140  # center roughly above pet
-        chat_y = pet_pos.y() - 430  # above pet
+        chat_x = pet_pos.x() - 140
+        chat_y = pet_pos.y() - 470  # extra height for mode selector
         # Keep on screen
         screen = QApplication.primaryScreen().geometry()
         chat_x = max(0, min(chat_x, screen.width() - 340))
-        chat_y = max(0, min(chat_y, screen.height() - 420))
+        chat_y = max(0, min(chat_y, screen.height() - 460))
         self.chat_window.move(chat_x, chat_y)
         self.chat_window.show()
         self.chat_window.raise_()
         self.chat_window.input_field.setFocus()
 
-    # ---- cleanup ----
     def closeEvent(self, event) -> None:
+        """Clean up keyboard listener and chat window on exit."""
         self.keyboard_listener.stop()
         if self.chat_window is not None:
             self.chat_window.close()
