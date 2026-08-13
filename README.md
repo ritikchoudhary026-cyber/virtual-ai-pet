@@ -43,27 +43,28 @@ A desktop AI companion that lives on your screen, monitors system activity, chat
 ---
 
 ##  Architecture
-┌─────────────┐ ┌───────────────────────┐
-│ Frontend │──────▶│ FastAPI Backend │
-│ (PyQt5 UI) │ │ /status, /chat │
-│ ┌───────┐ │ └─────────┬─────────────┘
-│ │ chat │ │ │
-│ └───────┘ │ ┌─────────▼─────────────┐
-└─────────────┘ │ Inference Manager │
-│ ┌─────────────────┐ │
-│ │ OfflineEngine │ │ (Phi-3 via llama-cpp)
-│ ├─────────────────┤ │
-│ │ OnlineEngine │ │ (Nemotron via API)
-│ └─────────────────┘ │
-└─────────┬─────────────┘
-│
-┌─────────▼─────────────┐
-│ Memory (ChromaDB) │
-│ Embeddings (MiniLM) │
-└───────────────────────┘
-
-
----
+```
+┌─────────────────────┐         ┌──────────────────────────┐
+│      Frontend       │  HTTP   │     FastAPI Backend      │
+│     (PyQt5 UI)      │────────▶│   /status, /chat         │
+└─────────────────────┘         └────────────┬─────────────┘
+                                             │
+                                             ▼
+                               ┌─────────────────────────────┐
+                               │      Inference Manager      │
+                               │  ┌────────────────────────┐  │
+                               │  │ OfflineEngine          │  │  (Phi-3 via llama-cpp)
+                               │  ├────────────────────────┤  │
+                               │  │ OnlineEngine           │  │  (Nemotron via API)
+                               │  └────────────────────────┘  │
+                               └────────────┬────────────────┘
+                                            │
+                                            ▼
+                               ┌────────────────────────────┐
+                               │     Memory (ChromaDB)      │
+                               │   Embeddings (MiniLM)      │
+                               └────────────────────────────┘
+```
 
 ##  Tech Stack
 
@@ -81,36 +82,35 @@ A desktop AI companion that lives on your screen, monitors system activity, chat
 
 ##  Folder Structure
 
+```
 virtual-ai-pet/
 ├── backend/
-│ ├── main.py # FastAPI app
-│ ├── config.py # Settings from env
-│ ├── engines/
-│ │ ├── base.py
-│ │ ├── offline_engine.py # Phi-3 GGUF
-│ │ └── online_engine.py # Nemotron API
-│ ├── tools.py # Calculator, system stats, etc.
-│ ├── agent.py # LangGraph agent
-│ ├── memory.py # Chroma helpers
-│ ├── models/ # Downloaded GGUF models
-│ │ └── phi-3-mini-4k-instruct.Q4_K_M.gguf
-│ ├── requirements.txt
-│ └── Dockerfile
+│   ├── main.py                 # FastAPI app
+│   ├── config.py               # Settings from env
+│   ├── engines/
+│   │   ├── base.py
+│   │   ├── offline_engine.py   # Phi-3 GGUF
+│   │   └── online_engine.py    # Nemotron API
+│   ├── tools.py                # Calculator, system stats, etc.
+│   ├── agent.py                # LangGraph agent
+│   ├── memory.py               # Chroma helpers
+│   ├── models/                 # Downloaded GGUF models
+│   │   └── phi-3-mini-4k-instruct.Q4_K_M.gguf
+│   ├── requirements.txt
+│   └── Dockerfile
 ├── frontend/
-│ ├── pet_ui.py # Main pet window
-│ ├── assets/ # GIFs (idle, working, alert)
-│ ├── requirements.txt
-│ └── Dockerfile (optional)
+│   ├── pet_ui.py               # Main pet window
+│   ├── assets/                 # GIFs (idle, working, alert)
+│   ├── requirements.txt
+│   └── Dockerfile (optional)
 ├── docker-compose.yml
 ├── .github/workflows/
-│ ├── ci.yml
-│ └── mlops.yml
+│   ├── ci.yml
+│   └── mlops.yml
 ├── .gitignore
 ├── .env.example
 └── README.md
-
-
----
+```
 
 ##  Prerequisites
 
@@ -199,53 +199,3 @@ All code written by Ritik Choudhary
 
 ##This project is for educational purposes. Use it responsibly and adhere to the respective licenses of the models and sources. 
 
-![Idle character](E4AEC8A5-B848-46CC-BB71-5A034E554B40_5-removebg-preview.png)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-![working character](BFE8A160-ECA1-4A22-B12F-5416503F8EC2_5-removebg-preview.png)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-![alert character](B1B25D83-7E97-46B1-8ED9-7CB7D573E7C8_3-removebg-preview.png)
