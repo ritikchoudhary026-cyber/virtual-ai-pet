@@ -4,31 +4,37 @@ import requests
 
 
 def calculator(expression: str) -> str:
-    """Calculate a math expression safely."""
-    # Convert "15% of 200" to "(15/100)*200"
+    """Calculate any math expression safely."""
     import re
-    expression = expression.replace(
-        '?',
-        '').replace(
-        '=',
-        '').replace(
-            "'",
-            "").replace(
-                '"',
-        "").strip()
-    expression = re.sub(
-        r'(\d+(?:\.\d+)?)%\s*of\s*(\d+(?:\.\d+)?)',
-        r'(\1/100)*\2',
-        expression.lower())
+    import math
 
-    allowed = set("0123456789+-*/().% ")
-    if not all(c in allowed for c in expression):
-        return "Error: Invalid characters in expression."
+    expr = expression.lower()
+    # Strip non-math question prefixes
+    expr = re.sub(r'^(what\s+is|calculate|compute|solve|how\s+much\s+is|value\s+of|result\s+of)\s+', '', expr).strip()
+    expr = expr.replace('?', '').replace('=', '').replace("'", "").replace('"', "").strip()
+
+    # Convert verbal words to operators
+    expr = re.sub(r'(\d+(?:\.\d+)?)%\s*of\s*(\d+(?:\.\d+)?)', r'(\1/100)*\2', expr)
+    expr = re.sub(r'(\d+(?:\.\d+)?)\s*percent\s*of\s*(\d+(?:\.\d+)?)', r'(\1/100)*\2', expr)
+    expr = expr.replace(' multiplied by ', '*').replace(' times ', '*').replace(' into ', '*').replace(' x ', '*')
+    expr = expr.replace(' divided by ', '/').replace(' plus ', '+').replace(' minus ', '-')
+    expr = expr.replace('^', '**')
+
+    # Allow math functions like sqrt
+    allowed_names = {"sqrt": math.sqrt, "abs": abs, "pow": pow, "round": round}
+
+    allowed_chars = set("0123456789+-*/().%^ ")
+    # Filter expression to clean characters
+    clean_expr = "".join(c for c in expr if c in allowed_chars or c.isalpha())
+
     try:
-        result = eval(expression)
+        result = eval(clean_expr, {"__builtins__": None}, allowed_names)
+        # Format whole numbers neatly
+        if isinstance(result, float) and result.is_integer():
+            return str(int(result))
         return str(result)
     except Exception as e:
-        return f"Error: {e}"
+        return f"Error evaluating calculation: {e}"
 
 
 def system_stats() -> str:

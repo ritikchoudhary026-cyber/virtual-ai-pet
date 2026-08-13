@@ -165,6 +165,24 @@ def create_agent(inference_manager, mode: str = "auto"):
                     args),
                 "next": "tools"}
 
+        # Smart universal math tool fallback for any calculation query
+        if not tool_match and state["messages"]:
+            last_msg = state["messages"][-1]
+            if last_msg.startswith("User: "):
+                user_text = last_msg.replace("User: ", "", 1).strip()
+                math_keywords = ['calculate', 'compute', 'solve', 'what is', 'how much is', 'value of', 'result of']
+                has_math_kw = any(kw in user_text.lower() for kw in math_keywords)
+                has_math_op = re.search(r'\d+\s*(?:%|percent|\+|\-|\*|\/|x|plus|minus|times|into|divided)\s*(?:of)?\s*\d+', user_text, re.I)
+                has_digits_op = any(op in user_text for op in ['+', '*', '/', '%']) and re.search(r'\d+', user_text)
+
+                if (has_math_kw or has_math_op or has_digits_op) and not any("Tool result (calculator)" in m for m in state["messages"]):
+                    logger.info("Universal math fallback triggering calculator for: %s", user_text)
+                    return {
+                        "messages": new_msgs,
+                        "tool_call": ("calculator", user_text),
+                        "next": "tools"
+                    }
+
         # No tool call - return clean text
         final_text = clean_reply(reply)
         new_msgs.append(f"Pet: {final_text}")
