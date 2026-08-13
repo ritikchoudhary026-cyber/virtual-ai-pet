@@ -2,6 +2,7 @@
 
 import re
 import logging
+from datetime import datetime
 from typing import TypedDict, List, Tuple, Optional
 
 from langgraph.graph import StateGraph, END
@@ -9,13 +10,12 @@ from tools import TOOLS
 
 logger = logging.getLogger(__name__)
 
-from datetime import datetime
-
 # System prompt shared by both engines
 TOOL_DESCRIPTIONS = "\n".join(
     f"- {name}: {info['description']} (Parameters: {info['parameters']})"
     for name, info in TOOLS.items()
 )
+
 
 def get_system_prompt() -> str:
     current_date = datetime.now().strftime("%A, %B %d, %Y")
@@ -32,7 +32,7 @@ For example:
 
 If you don't need a tool, just reply directly to the user.
 CRITICAL RULES FOR REPLYING:
-1. You are a fully capable AI (Nemotron). You can write code, analyze data, and help with complex tasks. 
+1. You are a fully capable AI (Nemotron). You can write code, analyze data, and help with complex tasks.
 2. Be friendly and conversational, but always provide detailed and professional answers when asked technical questions or coding tasks.
 3. Provide the direct answer immediately without any internal notes, reasoning, or parenthetical explanations (e.g. NEVER write "(Note: ...)").
 4. ONLY call a tool if you absolutely need it. Use web_search for real-time information, news, or unknown facts.
