@@ -3,89 +3,202 @@ If this project helped you learn something new, or you just enjoy using it, cons
 
 💸 **Support via UPI:** choudharyritik026-1@okicici
 
-# kuchu-Puchu PetAI
 
-A small, transparent, draggable desktop pet. Its animation changes as CPU and memory usage change. Everything runs locally and uses no paid service.
 
-## Project layout
+#  Virtual AI Pet – Kuchu-Puchu
 
-```
-PetAI/
-├── pet_ui.py                 # Phase 1 standalone UI
+A desktop AI companion that lives on your screen, monitors system activity, chats with you (offline/online), remembers past conversations, and can use tools. Built with Python, PyQt5, FastAPI, Hugging Face models, LangGraph, ChromaDB, Docker, and CI/CD pipelines.
+
+---
+
+##  Features
+
+###  Visual & Reactive Pet
+- Draggable, frameless, always-on-top transparent window
+- Animated GIF changes based on CPU/memory usage (idle/working/alert)
+- Smooth PyQt5 UI with speech bubble and chat input
+
+###  Intelligent Chat (Dual Mode)
+- **Offline:** Local Phi-3-mini (GGUF) via llama-cpp-python
+- **Online:** NVIDIA Nemotron 3.5 Lightning via API (fallback to offline in auto mode)
+- Mode toggle in UI: `auto`, `offline`, `online`
+- Shared memory system works in both modes
+
+###  Memory (RAG)
+- Persistent chat history stored in ChromaDB
+- Semantic retrieval of past conversations using sentence-transformers embeddings
+- Context-aware responses (e.g., remembers your name, schedule, preferences)
+
+###  Tools & Agent (LangGraph)
+- Calculator, system stats, weather, terminal file reader
+- Agent decides when to use a tool and executes it
+- Multi-step reasoning via LangGraph state machine
+
+###  CI/CD & MLOps (Setup Ready)
+- GitHub Actions for linting, testing, Docker build & push
+- DVC for data/model versioning
+- MLflow for experiment tracking (local)
+- Scheduled retraining workflow (optional with self-hosted runner)
+
+---
+
+##  Architecture
+┌─────────────┐ ┌───────────────────────┐
+│ Frontend │──────▶│ FastAPI Backend │
+│ (PyQt5 UI) │ │ /status, /chat │
+│ ┌───────┐ │ └─────────┬─────────────┘
+│ │ chat │ │ │
+│ └───────┘ │ ┌─────────▼─────────────┐
+└─────────────┘ │ Inference Manager │
+│ ┌─────────────────┐ │
+│ │ OfflineEngine │ │ (Phi-3 via llama-cpp)
+│ ├─────────────────┤ │
+│ │ OnlineEngine │ │ (Nemotron via API)
+│ └─────────────────┘ │
+└─────────┬─────────────┘
+│
+┌─────────▼─────────────┐
+│ Memory (ChromaDB) │
+│ Embeddings (MiniLM) │
+└───────────────────────┘
+
+
+---
+
+##  Tech Stack
+
+- **Frontend:** PyQt5
+- **Backend:** FastAPI, Uvicorn, Pydantic
+- **Models:** Phi-3-mini (GGUF), Nemotron 3.5 Lightning (API), Sentence-Transformers (all-MiniLM-L6-v2)
+- **Vector DB:** ChromaDB
+- **Agent:** LangGraph, custom tools
+- **Containerization:** Docker, Docker Compose
+- **CI/CD:** GitHub Actions, Docker Hub
+- **MLOps:** DVC, MLflow
+- **Others:** psutil, requests, httpx, python-dotenv
+
+---
+
+##  Folder Structure
+
+virtual-ai-pet/
 ├── backend/
-│   ├── main.py               # Phase 2 FastAPI service
-│   ├── requirements.txt
-│   └── Dockerfile
+│ ├── main.py # FastAPI app
+│ ├── config.py # Settings from env
+│ ├── engines/
+│ │ ├── base.py
+│ │ ├── offline_engine.py # Phi-3 GGUF
+│ │ └── online_engine.py # Nemotron API
+│ ├── tools.py # Calculator, system stats, etc.
+│ ├── agent.py # LangGraph agent
+│ ├── memory.py # Chroma helpers
+│ ├── models/ # Downloaded GGUF models
+│ │ └── phi-3-mini-4k-instruct.Q4_K_M.gguf
+│ ├── requirements.txt
+│ └── Dockerfile
 ├── frontend/
-│   ├── pet_ui.py             # Phase 2 UI
-│   └── requirements.txt
-├── assets/                   # Add your GIF animations here
+│ ├── pet_ui.py # Main pet window
+│ ├── assets/ # GIFs (idle, working, alert)
+│ ├── requirements.txt
+│ └── Dockerfile (optional)
 ├── docker-compose.yml
+├── .github/workflows/
+│ ├── ci.yml
+│ └── mlops.yml
+├── .gitignore
+├── .env.example
 └── README.md
-```
 
-## Prerequisites
 
-- Python 3.10 or newer: install it from https://www.python.org/downloads/
-- Docker Desktop (only for Phase 2's backend): install it from https://www.docker.com/products/docker-desktop/
-- Three GIFs in `assets/`: `idle.gif`, `working.gif`, and `alert.gif`. You can temporarily copy the same GIF three times.
+---
 
-On Windows, open PowerShell in the `PetAI` folder. In the commands below, use `python` if that works on your installation; otherwise replace it with `py`.
+##  Prerequisites
 
-## Phase 1: local resource monitoring in one script
+- **Python 3.10+**
+- **Git**
+- **Docker** (for containerized backend)
+- **NVIDIA API key** (free tier available) – for online mode (optional)
+- **Hugging Face token** (optional, for faster downloads)
 
-Create and activate a virtual environment (do this once):
+---
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install PyQt5 psutil pynput
-```
+##  Setup Instructions
 
-Run the Phase 1 pet:
+### 1. Clone Repository
 
-```powershell
+```bash
+git clone https://github.com/ritikchoudhary026-cyber/virtual-ai-pet.git
+cd virtual-ai-pet
+
+## backend-setup
+Backend Setup (Local)
+bash
+cd backend
+python -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+Download the Phi-3-mini GGUF model:
+
+bash
+mkdir -p models
+cd models
+curl -L -O "https://huggingface.co/TheBloke/Phi-3-mini-4k-instruct-GGUF/resolve/main/phi-3-mini-4k-instruct.Q4_K_M.gguf"
+cd ..
+
+## Environment Variables
+Create .env file inside backend/ (use .env.example as template):
+
+ini
+DEFAULT_MODE=auto
+PHI_MODEL_PATH=models/phi-3-mini-4k-instruct.Q4_K_M.gguf
+NEMOTRON_API_KEY=your_nemotron_api_key_here
+NEMOTRON_API_URL=https://integrate.api.nvidia.com/v1/chat/completions
+NEMOTRON_MODEL=nvidia/nemotron-3.5-8b-chat
+NEMOTRON_TIMEOUT=15
+NEMOTRON_MAX_RETRIES=2
+CHROMA_DB_PATH=./chroma_db
+
+##Frontend Setup
+bash
+cd ../frontend
+pip install -r requirements.txt
+
+##Running the Project
+Backend (Terminal 1)
+bash
+cd backend
+export KMP_DUPLICATE_LIB_OK=TRUE   # for Mac only
+uvicorn main:app --host 0.0.0.0 --port 8000
+
+##Frontend (Terminal 2)
+bash
+cd frontend
 python pet_ui.py
-```
 
-The pet checks your computer every two seconds. It is **working** for five seconds after keyboard, mouse, trackpad, or scrolling activity, then becomes **idle**. It becomes **alert** when CPU reaches 80% or memory reaches 90%. Drag it with the left mouse button. Stop it with `Ctrl+C` in the terminal.
+##Docker Setup (Backend)
+Build and run backend only:
 
-## Phase 2: FastAPI backend in Docker, UI on your computer
-
-Start Docker Desktop first. From the project root, build and start the backend:
-
-```powershell
+bash
 docker compose up --build
-```
 
-Leave that terminal open. The API is available at http://localhost:8000/status and its interactive documentation is at http://localhost:8000/docs.
+##Testing
+Chat: Type messages in the pet window. Test offline and online modes.
 
-In a second PowerShell window, enter the project folder, activate the same virtual environment, install the frontend dependencies, and run the UI:
+Memory: Tell pet your name, then ask "What is my name?"
 
-```powershell
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r frontend\requirements.txt
-python frontend\pet_ui.py
-```
+Tools: Ask "What is 15% of 250?" or "Check CPU usage."
 
-The frontend calls the backend every two seconds. If the backend is unavailable, it keeps showing the last successful animation; if it has never connected, it displays a small disconnected message.
 
-Stop the UI with `Ctrl+C`. Stop the Docker backend with `Ctrl+C` in its terminal, then run this if you want to remove the stopped container:
+# Credits & License
+Phi-3-mini model: Microsoft (GGUF by TheBloke)
 
-```powershell
-docker compose down
-```
+Nemotron 3.5 Lightning: NVIDIA
 
-## Running the backend without Docker (optional)
+All code written by Ritik Choudhary
 
-If Docker Desktop is not available, install backend dependencies and start Uvicorn locally:
+##This project is for educational purposes. Use it responsibly and adhere to the respective licenses of the models and sources. 
 
-```powershell
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r backend\requirements.txt
-python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
-```
 ![Idle character](E4AEC8A5-B848-46CC-BB71-5A034E554B40_5-removebg-preview.png)
 
 
