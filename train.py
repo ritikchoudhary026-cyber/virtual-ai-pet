@@ -25,7 +25,7 @@ def train():
         print("Training complete!")
         # Simulate saving model weights
         dummy_model = torch.nn.Linear(10, 10)
-        mlflow.pytorch.log_model(dummy_model, "model")
+        mlflow.pytorch.log_model(dummy_model, name="model", serialization_format="cloudpickle")
         print("Model logged to MLflow.")
 
 if __name__ == "__main__":
